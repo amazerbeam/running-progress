@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Running Tracker</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f4f4f4;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    #controls {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 40px;
+    }
+
+    #controls button,
+    #saveBtn {
+      border: 2px solid green;
+      color: #222;
+      background: #fff;
+      padding: 6px 18px;
+      border-radius: 5px;
+      font-size: 15px;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    #controls button:hover,
+    #saveBtn:hover {
+      background: #e6ffe6;
+      color: green;
+    }
+
+    #form-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.4);
+      z-index: 1000;
+    }
+
+    #form-container.active {
+      display: flex;
+    }
+
+    form {
+      display: block;
+      background: #fafafa;
+      padding: 25px 30px 20px 30px;
+      border-radius: 12px;
+      min-width: 320px;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+      margin: auto;
+    }
+
+    form label {
+      display: block;
+      margin-bottom: 4px;
+      text-align: left;
+      font-size: 15px;
+    }
+
+    form input[type="text"],
+    form input[type="number"],
+    form input[type="date"],
+    form select {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 7px 8px;
+      margin-bottom: 12px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 15px;
+      background: white;
+      transition: border 0.2s;
+    }
+
+    form input[type="text"]:focus,
+    form input[type="number"]:focus,
+    form input[type="date"]:focus,
+    form select:focus {
+      border: 1.5px solid #007bff;
+      outline: none;
+      background: #fff;
+    }
+
+    .form-buttons {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 10px;
+    }
+
+    #cancelBtn {
+      border: 2px solid red;
+      color: #222;
+      background: #fff;
+      padding: 6px 18px;
+      border-radius: 5px;
+      font-size: 15px;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    #cancelBtn:hover {
+      background: #ffeaea;
+      color: red;
+    }
+
+    /* Chart area styling */
+    .chart-container {
+      display: block;
+      margin: 40px auto 0 auto;
+      max-width: 600px;
+      width: 100%;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07);
+      padding: 10px;
+    }
+
+    #chart {
+      display: block;
+      width: 100%;
+      height: 350px !important;
+      background: transparent;
+      padding: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Running Performance Tracker</h1>
+
+  <div id="controls">
+    <button onclick="toggleForm()">Add Entry</button>
+    <label for="distanceFilter">Select Distance (km):</label>
+    <select id="distanceFilter" onchange="cacheDistanceSelection(); renderChart()"></select>
+  </div>
+
+  <div id="form-container" onclick="if(event.target===this)toggleForm();">
+    <form id="entryForm" onsubmit="addEntry(event)">
+      <label for="date">Date:</label>
+      <input type="date" id="date" required>
+
+      <label for="time">Time (MM:SS):</label>
+      <input type="text" id="time" placeholder="e.g. 25:30" required>
+
+      <label for="weightStone">Weight - Stone:</label>
+      <input type="number" id="weightStone" min="0" required>
+
+      <label for="weightPounds">Weight - Pounds:</label>
+      <input type="number" id="weightPounds" min="0" max="13" required>
+
+      <label for="distance">Distance (km):</label>
+      <select id="distance" required></select>
+
+      <div class="form-buttons">
+        <button type="submit" id="saveBtn">Save</button>
+        <button type="button" id="cancelBtn">Cancel</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="chart-container">
+    <canvas id="chart" height="350"></canvas>
+  </div>
+
+  <script>
+    const form = document.getElementById('entryForm');
+    const distanceSelect = document.getElementById('distance');
+    const distanceFilter = document.getElementById('distanceFilter');
+    const weightStone = document.getElementById('weightStone');
+    const weightPounds = document.getElementById('weightPounds');
+    const timeInput = document.getElementById('time');
+
+    function populateDropdowns() {
+      for (let i = 1; i <= 43; i++) {
+        const opt = new Option(`${i} km`, i);
+        distanceSelect.appendChild(opt.cloneNode(true));
+        distanceFilter.appendChild(opt);
+      }
+      const cachedDistance = localStorage.getItem('selectedDistance');
+      if (cachedDistance) distanceFilter.value = cachedDistance;
+    }
+
+    function toggleForm() {
+      const container = document.getElementById('form-container');
+      container.classList.toggle('active');
+      document.getElementById('date').valueAsDate = new Date();
+
+      // Autofill cached weight if available
+      const cachedWeight = localStorage.getItem('cachedWeight');
+      if (cachedWeight) {
+        const [stone, pounds] = cachedWeight.split(':');
+        weightStone.value = stone;
+        weightPounds.value = pounds;
+      }
+      // Autofill cached time if available
+      const cachedTime = localStorage.getItem('cachedTime');
+      if (cachedTime) {
+        timeInput.value = cachedTime;
+      }
+      // Autofill cached distance if available
+      const cachedDistance = localStorage.getItem('selectedDistance');
+      if (cachedDistance) {
+        distanceSelect.value = cachedDistance;
+      }
+    }
+
+    // Auto-insert ":" after 2 digits in time input
+    timeInput.addEventListener('input', function (e) {
+      let val = timeInput.value.replace(/[^0-9:]/g, '');
+      if (val.length === 2 && !val.includes(':')) {
+        val = val + ':';
+      }
+      // Prevent more than 2 digits before colon
+      if (val.length > 5) val = val.slice(0, 5);
+      timeInput.value = val;
+      // Cache time as user types
+      localStorage.setItem('cachedTime', val);
+    });
+
+    function addEntry(event) {
+      event.preventDefault();
+      const data = JSON.parse(localStorage.getItem('runData') || '[]');
+      const entry = {
+        date: document.getElementById('date').value,
+        time: document.getElementById('time').value,
+        weight: `${weightStone.value}:${weightPounds.value}`,
+        distance: +document.getElementById('distance').value
+      };
+      data.push(entry);
+      localStorage.setItem('runData', JSON.stringify(data));
+      // Cache weight for next time
+      localStorage.setItem('cachedWeight', `${weightStone.value}:${weightPounds.value}`);
+      // Cache time for next time
+      localStorage.setItem('cachedTime', document.getElementById('time').value);
+      // Cache distance for next time
+      localStorage.setItem('selectedDistance', document.getElementById('distance').value);
+      form.reset();
+      toggleForm();
+      renderChart();
+    }
+
+    function parseTimeToSeconds(timeStr) {
+      const [min, sec] = timeStr.split(':').map(Number);
+      return min * 60 + sec;
+    }
+
+    function parseWeightToLbs(weightStr) {
+      const [stone, pounds] = weightStr.split(':').map(Number);
+      return stone * 14 + pounds;
+    }
+
+    function cacheDistanceSelection() {
+      localStorage.setItem('selectedDistance', distanceFilter.value);
+    }
+
+    // Helper to format date as "DD Mon YYYY"
+    function formatDateLabel(dateStr) {
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const d = new Date(dateStr);
+      if (isNaN(d)) return dateStr;
+      return `${d.getFullYear()}-${months[d.getMonth()]}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    function formatTimeLabel(seconds) {
+      // Converts seconds to MM:SS
+      const min = Math.floor(seconds / 60);
+      const sec = seconds % 60;
+      return `${min}:${sec.toString().padStart(2, '0')}`;
+    }
+
+    function renderChart() {
+      const ctx = document.getElementById('chart').getContext('2d');
+      const data = JSON.parse(localStorage.getItem('runData') || '[]');
+      const selectedDistance = +distanceFilter.value;
+
+      const filtered = data.filter(d => d.distance === selectedDistance);
+      filtered.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+      // Format labels as "YYYY-Mon-DD"
+      const labels = filtered.map(d => formatDateLabel(d.date));
+      const times = filtered.map(d => parseTimeToSeconds(d.time));
+      const weights = filtered.map(d => parseWeightToLbs(d.weight));
+
+      if (window.myChart) window.myChart.destroy();
+
+      window.myChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Time (s)',
+              data: times,
+              borderWidth: 2,
+              fill: false,
+              tension: 0.1,
+              yAxisID: 'y',
+              pointRadius: 5,
+              pointHoverRadius: 7
+            },
+            {
+              label: 'Weight (lbs)',
+              data: weights,
+              borderWidth: 2,
+              fill: false,
+              tension: 0.1,
+              yAxisID: 'y1',
+              pointRadius: 5,
+              pointHoverRadius: 7
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            title: {
+              display: true,
+              text: `Run Performance for ${selectedDistance} km`
+            },
+            tooltip: {
+              callbacks: {
+                title: function (context) {
+                  // Show formatted date
+                  return context[0].label;
+                },
+                label: function (context) {
+                  if (context.dataset.label === 'Time (s)') {
+                    // Show time as MM:SS
+                    return 'Time: ' + formatTimeLabel(context.parsed.y);
+                  }
+                  if (context.dataset.label === 'Weight (lbs)') {
+                    return 'Weight: ' + context.parsed.y + ' lbs';
+                  }
+                  return context.dataset.label + ': ' + context.parsed.y;
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: false,
+              title: { display: true, text: 'Time (s)' }
+            },
+            y1: {
+              beginAtZero: false,
+              position: 'right',
+              grid: { drawOnChartArea: false },
+              title: { display: true, text: 'Weight (lbs)' }
+            }
+          }
+        }
+      });
+    }
+
+    // Cancel button closes the form
+    document.getElementById('cancelBtn').onclick = function () {
+      toggleForm();
+    };
+
+    populateDropdowns();
+    renderChart();
+  </script>
+</body>
+
+</html>
