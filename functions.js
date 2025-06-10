@@ -61,6 +61,18 @@ function addEntry(event) {
     weight: `${weightStone.value}:${weightPounds.value}`,
     distance: +document.getElementById('distance').value
   };
+
+  // --- Check for new fastest time or lowest weight ---
+  const selectedDistance = entry.distance;
+  const filtered = data.filter(d => d.distance === selectedDistance);
+  const prevTimes = filtered.map(d => parseTimeToSeconds(d.time));
+  const prevWeights = filtered.map(d => parseWeightToLbs(d.weight));
+  const newTime = parseTimeToSeconds(entry.time);
+  const newWeight = parseWeightToLbs(entry.weight);
+
+  let isFastest = prevTimes.length === 0 || newTime < Math.min(...prevTimes);
+  let isLowestWeight = prevWeights.length === 0 || newWeight < Math.min(...prevWeights);
+
   data.push(entry);
   localStorage.setItem('runData', JSON.stringify(data));
   // Cache weight for next time
@@ -72,6 +84,15 @@ function addEntry(event) {
   form.reset();
   toggleForm();
   renderChart();
+
+  // --- Show celebration if new record ---
+  if (isFastest) {
+    showCelebration('fastest', formatTimeLabel(newTime));
+  } else if (isLowestWeight) {
+    const stone = Math.floor(newWeight / 14);
+    const pounds = Math.round(newWeight % 14);
+    showCelebration('lowestWeight', `${stone} st ${pounds} lbs`);
+  }
 }
 
 function parseTimeToSeconds(timeStr) {
@@ -194,12 +215,22 @@ function renderChart() {
         y: {
           beginAtZero: false,
           title: { display: true, text: 'Time (MM:SS)' },
+          min: times.length ? Math.min(...times) : undefined,
+          max: times.length ? Math.max(...times) : undefined,
           ticks: {
             callback: function(value) {
+              // Only show labels for actual times in the data
+              const uniqueTimes = Array.from(new Set(times));
+              if (!uniqueTimes.includes(value)) return '';
               const min = Math.floor(value / 60);
               const sec = value % 60;
               return `${min}:${sec.toString().padStart(2, '0')}`;
             }
+          },
+          afterBuildTicks: function(axis) {
+            // Only use unique times as ticks
+            axis.ticks = Array.from(new Set(times)).sort((a, b) => a - b).map(t => ({ value: t }));
+            return axis.ticks;
           }
         },
         y1: {
@@ -221,4 +252,68 @@ function renderChart() {
       }
     }
   });
+}
+
+function showCelebration(type, value) {
+  const overlay = document.getElementById('celebrate-overlay');
+  const detail = document.getElementById('celebrate-detail');
+  if (type === 'fastest') {
+    detail.textContent = `New Fastest Time: ${value}`;
+  } else if (type === 'lowestWeight') {
+    detail.textContent = `New Lowest Weight: ${value}`;
+  }
+  overlay.style.display = 'flex';
+  startFireworks();
+
+  setTimeout(() => {
+    overlay.style.display = 'none';
+    stopFireworks();
+  }, 4000);
+}
+
+// Simple fireworks animation
+let fireworkInterval;
+function startFireworks() {
+  const canvas = document.getElementById('firework-canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  function randomColor() {
+    const colors = ['#ff3', '#f36', '#3ff', '#6f3', '#f93', '#39f', '#fff'];
+    return colors[Math.floor(Math.random() * colors.length)];
+  }
+
+  function drawFirework() {
+    const x = Math.random() * canvas.width;
+    const y = Math.random() * canvas.height * 0.7;
+    for (let i = 0; i < 30; i++) {
+      const angle = (i / 30) * 2 * Math.PI;
+      const length = 60 + Math.random() * 40;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + Math.cos(angle) * length, y + Math.sin(angle) * length);
+      ctx.strokeStyle = randomColor();
+      ctx.lineWidth = 2 + Math.random() * 2;
+      ctx.stroke();
+    }
+  }
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  fireworkInterval = setInterval(() => {
+    ctx.globalAlpha = 0.2;
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.globalAlpha = 1;
+    drawFirework();
+  }, 300);
+}
+
+function stopFireworks() {
+  clearInterval(fireworkInterval);
+  const canvas = document.getElementById('firework-canvas');
+  if (canvas) {
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
 }
