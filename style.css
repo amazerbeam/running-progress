@@ -1,0 +1,138 @@
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 20px;
+  background-color: #f4f4f4;
+}
+
+h1 {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+#controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 40px;
+}
+
+#controls button,
+#saveBtn {
+  border: 2px solid green;
+  color: #222;
+  background: #fff;
+  padding: 6px 18px;
+  border-radius: 5px;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+#controls button:hover,
+#saveBtn:hover {
+  background: #e6ffe6;
+  color: green;
+}
+
+#form-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+}
+
+#form-container.active {
+  display: flex;
+}
+
+form {
+  display: block;
+  background: #fafafa;
+  padding: 25px 30px 20px 30px;
+  border-radius: 12px;
+  min-width: 320px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+  margin: auto;
+}
+
+form label {
+  display: block;
+  margin-bottom: 4px;
+  text-align: left;
+  font-size: 15px;
+}
+
+form input[type="text"],
+form input[type="number"],
+form input[type="date"],
+form select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 7px 8px;
+  margin-bottom: 12px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 15px;
+  background: white;
+  transition: border 0.2s;
+}
+
+form input[type="text"]:focus,
+form input[type="number"]:focus,
+form input[type="date"]:focus,
+form select:focus {
+  border: 1.5px solid #007bff;
+  outline: none;
+  background: #fff;
+}
+
+.form-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+#cancelBtn {
+  border: 2px solid red;
+  color: #222;
+  background: #fff;
+  padding: 6px 18px;
+  border-radius: 5px;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+#cancelBtn:hover {
+  background: #ffeaea;
+  color: red;
+}
+
+/* Chart area styling */
+.chart-container {
+  display: block;
+  margin: 40px auto 0 auto;
+  max-width: 600px;
+  width: 100%;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07);
+  padding: 10px;
+}
+
+#chart {
+  display: block;
+  width: 100%;
+  height: 350px !important;
+  background: transparent;
+  padding: 0;
+}
