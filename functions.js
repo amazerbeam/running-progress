@@ -139,14 +139,20 @@ function renderChart() {
 
   // Find fastest time (minimum seconds)
   let fastestTime = null;
+  let fastestDate = null;
   if (times.length > 0) {
     const minTime = Math.min(...times);
     fastestTime = formatTimeLabel(minTime);
+    // Find the date for the fastest time
+    const idx = times.indexOf(minTime);
+    fastestDate = filtered[idx]?.date ? formatDateLabel(filtered[idx].date) : '';
   }
 
   // Update the header
   const fastestHeader = document.getElementById('fastest-header');
-  if (fastestTime) {
+  if (fastestTime && fastestDate) {
+    fastestHeader.textContent = `Fastest time for ${selectedDistance} km: ${fastestTime} on ${fastestDate}`;
+  } else if (fastestTime) {
     fastestHeader.textContent = `Fastest time for ${selectedDistance} km: ${fastestTime}`;
   } else {
     fastestHeader.textContent = '';
